@@ -1,15 +1,17 @@
 #!/bin/bash
 # Q4 side-effect matrix: each trait vector and three random directions on neutral
 # prompts, below (LOW) and above (HIGH) the coherence break; all ten rubrics.
-#   sbatch -p <partition> -A <account> --export=ALL,MODEL=qwen3-4b,LOW=0.3,HIGH=1.5 slurm/side.sbatch
+#   sbatch --export=ALL,MODEL=qwen3-4b,LOW=0.3,HIGH=1.5 slurm/side.sbatch
 #SBATCH --job-name=side
-#SBATCH --gres=gpu:1
+#SBATCH -p mit_normal_gpu
+#SBATCH --gres=gpu:h200:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
 #SBATCH --time=06:00:00
 #SBATCH --output=logs/%x_%j.out
 set -euo pipefail
 source slurm/env.sh
+export HF_HUB_OFFLINE=1   # weights come from slurm/download.sbatch
 MODEL=${MODEL:?}; LOW=${LOW:?}; HIGH=${HIGH:?}; JUDGE=${JUDGE:-mistral-small}
 for VSET in A B C; do
   for T in "${TRAITS[@]}"; do

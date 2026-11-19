@@ -2,17 +2,19 @@
 # One trait, one vector set, one model: extract -> judge -> vector -> grid -> judge.
 # Every stage resumes, so if the job hits the time limit just submit it again.
 #
-#   sbatch -p <gpu partition> -A <account> --array=0-9 \
+#   sbatch --array=0-9 \
 #          --export=ALL,MODEL=qwen3-4b,VSET=A,GRID=main slurm/pipeline.sbatch
 #
 #SBATCH --job-name=steer
-#SBATCH --gres=gpu:1
+#SBATCH -p mit_normal_gpu
+#SBATCH --gres=gpu:h200:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
 #SBATCH --time=06:00:00
 #SBATCH --output=logs/%x_%A_%a.out
 set -euo pipefail
 source slurm/env.sh
+export HF_HUB_OFFLINE=1   # weights come from slurm/download.sbatch
 MODEL=${MODEL:?}; VSET=${VSET:-A}; GRID=${GRID:-main}; JUDGE=${JUDGE:-mistral-small}
 T=${TRAITS[$SLURM_ARRAY_TASK_ID]}
 
