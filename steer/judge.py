@@ -86,7 +86,10 @@ def score_texts(model, tok, texts, digit_ids, batch_size=16):
         idx = order[bi : bi + batch_size]
         chats = [models.chat(tok, texts[i]) for i in idx]
         enc = tok(chats, return_tensors="pt", padding=True, add_special_tokens=False).to(model.device)
-        logits = model(**enc).logits[:, -1, :].float()
+        # Unembed only the last position: full-sequence logits are
+        # batch x tokens x vocab and would dominate memory.
+        last = model.base_model(**enc).last_hidden_state[:, -1, :]
+        logits = model.get_output_embeddings()(last).float()
         p = torch.softmax(logits, dim=-1)[:, digit_ids].cpu()
         mass = p.sum(-1)
         expected = (p * values).sum(-1) / mass.clamp_min(1e-9)

@@ -147,9 +147,9 @@ We \upd{extract} difference-of-means steering vectors for \upd{ten} traits with
 the persona-vectors recipe \cite{chen2025persona}, from \upd{three} independently generated
 prompt sets per trait. Vectors are extracted and applied at the middle layer of each
 model. Strength $a$ is measured in units of the median residual-stream norm at the
-steered layer, so that it is comparable across model sizes. An LLM judge will score
-every reply \upd{for the steered trait} and for coherence on a 0 to 9 scale, and a reply will
-count as expressing the trait when its score is at least a 5. \upd{Scoring every reply
+steered layer, so that it is comparable across model sizes. An LLM judge \upd{scores}
+every reply \upd{for the steered trait} and for coherence on a 0 to 9 scale, and a reply
+\upd{counts} as expressing the trait when its score is at least a 5. \upd{Scoring every reply
 against all ten rubrics would take about one million judge calls per model and
 vector set, so all ten rubrics are applied only to the reduced side-effect runs
 of Q4.}
@@ -260,14 +260,14 @@ below the break and strongly above it.}
 \section{Experiments}
 
 Each question above reduces to a quantity with a confidence interval, so evaluation
-for us will mean checking that these quantities are stable and not artifacts of the
+\upd{means} checking that these quantities are stable and not artifacts of the
 judge or decoding.
 
 \subsection{Data}
 Trait prompts come from the persona-vectors release \cite{chen2025persona}
 \upd{for the five traits it covers (hallucinating, sycophantic, humorous,
 optimistic, impolite; used as extraction set A)}, so our
-trait definitions will match a published baseline. Additionally, we will use
+trait definitions \upd{match} a published baseline. Additionally, we \upd{use}
 independently-generated held-out sets of 120 evaluation prompts per trait, so that
 vectors are never evaluated on the prompts that produced them.
 
@@ -304,14 +304,14 @@ the same strengths as the trait vectors in the side-effect runs. They show what
 any push of that size does, as opposed to a push along the trait vector.}
 
 \subsection{Evaluation Metrics}
-\textbf{Reliability.} Every quantity will be estimated from at least three independent
+\textbf{Reliability.} Every quantity \upd{is} estimated from at least three independent
 vector sets, with prompt-bootstrap confidence intervals. Thus, we interpret
 side-effect estimates only if they repeat across sets (test-retest $r > 0.7$).
 
 \textbf{Switching.} Q1 and Q2 are scored by $S$ with its bootstrap interval per trait.
-Because about ten traits give little power for a group comparison, we plan to test the
+Because about ten traits give little power for a group comparison, we \upd{test} the
 decision versus style split with a permutation test over trait labels. Greedy decoding
-will give us an independent check, where each prompt then flips deterministically at
+\upd{gives} us an independent check, where each prompt then flips deterministically at
 one strength, and the spread of these flip points estimates $\sigma_t$ without the
 hierarchical model.
 
@@ -319,11 +319,11 @@ hierarchical model.
 intervention. Q4 fits $\mu$ and the coherence window against log model size with
 bootstrap intervals.
 
-\textbf{Judge.} The primary judge will be Mistral-Small-24B, outside the steered model
+\textbf{Judge.} The primary judge \upd{is} Mistral-Small-24B, outside the steered model
 family, scored by its expected rating, which is the probability-weighted mean over its
-next-token distribution on the digits 0 to 9. Qwen3-14B will re-score a fixed 10\%
+next-token distribution on the digits 0 to 9. Qwen3-14B \upd{re-scores} a fixed 10\%
 subset, and traits whose two judges disagree (meaning they have a Spearman correlation
-below 0.8) will be reported but excluded from the Q2 test.
+below 0.8) \upd{are} reported but excluded from the Q2 test.
 
 \fillin{The judge prompt (or a pointer to an appendix), and any human validation of
 the judge.}
@@ -335,12 +335,12 @@ pass; a score is discarded if less than 25\% of the probability falls on digits.
 the two judges per trait.}
 
 \subsection{Implementation Details}
-We propose using the Qwen3 family \cite{yang2025qwen3} at 0.6B, 1.7B, 4B, 8B, and 14B
-parameters because its dense models share a tokenizer and training recipe. We will use
+We \upd{use} the Qwen3 family \cite{yang2025qwen3} at 0.6B, 1.7B, 4B, 8B, and 14B
+parameters because its dense models share a tokenizer and training recipe. We \upd{use}
 a second family, Gemma 3 (1B, 4B, 12B, 27B), to validate the main results. The main
 grid is about 96k replies per model and vector set (10 traits, 120 prompts, 10
-strengths, 8 samples). We estimate 250 GPU-hours for the full study, using H100s on
-the MIT Engaging cluster or RunPod.
+strengths, 8 samples). \upd{All runs use H100 GPUs on the MIT Engaging cluster, with a budget of 250
+GPU-hours for the full study.}
 \pending{measured throughput from the pilot, to confirm the GPU-hour estimate. If
 it is exceeded, models other than Qwen3-4B use 60 prompts per trait, and Gemma 3
 is limited to 4B and 12B.}
@@ -445,6 +445,24 @@ the pilot and the main grid on Qwen3-4B with the Q1 fit and Q2 test (by 2
 December); commitment runs and the launch of the size ladder (by 9 December); Q4
 analysis, the side-effect matrix, judge cross-checks, and Gemma 3 if budget
 allows (by 16 December); then figures and writing.}
+
+%------------------------------------------------------------
+\section*{AI Acknowledgement}
+\upd{We used Claude Code (Anthropic; model Claude Fable 5.2) to generate the code
+for the extraction, steering, judging, and analysis pipeline and its automated
+tests, and to draft the implementation plan.}
+\fillin{Any other AI use: related-work search, tables, and any AI-drafted prose
+that remains in this paper. The green text in this draft was drafted by Claude
+Code; the course lists code, related-work research, and tables as approved uses,
+so rewrite that text yourselves or disclose it here after checking with staff.}
+\fillin{How you checked the output, in your own words and only what you actually
+did. Material available: the unit tests for the steering hook, the simulation
+that recovers known parameters, the laptop end-to-end run, and your own reading
+of the code and of the generated prompt sets.}
+\upd{Everything in this paper is our team's responsibility, whatever tool helped
+produce it.} The language models that are part of the research itself (the steered
+models, the judges, and the model that wrote the prompt sets) are described in
+Sections 3 and 4.
 
 %------------------------------------------------------------
 \section*{Reflection}
