@@ -1,0 +1,489 @@
+\documentclass[11pt]{article}
+\let\origbibliographystyle\bibliographystyle
+\renewcommand{\bibliographystyle}[1]{}
+\usepackage[preprint]{acl}
+\let\bibliographystyle\origbibliographystyle
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\setcitestyle{numbers,square}
+
+\newcommand{\fillin}[1]{\textcolor{red}{[FILL IN: #1]}}
+\newcommand{\rec}[1]{\textcolor{blue}{[SUGGESTED: #1]}}
+% Colour key: red = still to fill in; blue = suggestion not yet acted on;
+% green = text updated on 19 Nov to match the implemented pipeline;
+% magenta = cannot be written until results exist.
+\definecolor{updgreen}{rgb}{0,0.5,0}
+\newcommand{\upd}[1]{{\color{updgreen}#1}}
+\newcommand{\pending}[1]{\textcolor{magenta}{[PENDING RESULTS: #1]}}
+
+\title{Switches or Dials? How Language Model Traits Respond to Activation Steering}
+\author{Lauren Shen \and Mahdi Afshari \and Katelyn Gan \and Danial Hosseintabar \\
+Massachusetts Institute of Technology}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\fillin{4--6 sentence abstract.}
+\upd{Activation steering changes a language model's behavior by adding a trait
+direction to its activations, but how behavior responds to the steering strength
+is unknown. Under a dial, each reply gradually becomes more aligned with the
+trait as strength grows; under a switch, each prompt flips abruptly at its own
+threshold. The question is still open because the smooth curves reported in prior
+work may occur only because measurements average over different prompts. We
+measure, for ten traits across five Qwen3 model sizes with Gemma 3 as a second
+family, how much of the variation in steering response lies within prompts
+versus between them. We fit a hierarchical probit model to individual replies and
+report the switchiness $S$, the share of the population spread that comes from
+prompts differing in threshold. The full pipeline is implemented, and its
+estimator recovers known switch and dial settings in simulation.}
+\pending{one sentence on the main finding: $S$ per trait group on Qwen3-4B.}
+\end{abstract}
+
+%------------------------------------------------------------
+\section{Introduction}
+
+Language models might be the most fascinating invention of the decade but they often
+hallucinate facts or refuse to answer prompts. To influence the model, you may use a
+technique called activation steering to affect a specific trait \cite{chen2025persona}
+\upd{by adding a multiple of a trait direction, named the steering vector, to the
+model's activations during generation.}
+
+There are currently two hypotheses on how increasing the strength of these steering
+vectors impacts the model: dial and switch. The dial represents how, as the magnitude
+of the steering vector is incremented, each generated response gradually becomes
+aligned with the trait represented by the steering vector. On the other hand, the
+switch represents how each prompt flips abruptly from normal to trait-like behavior at
+a specific threshold. This question is still open because the smooth curves reported
+in prior work may occur because measurements average over different prompts, use a
+handful of strengths, and study a single model.
+
+If steering works like a dial, a trait's strength chosen on test prompts will have a
+similar, predictable effect on new prompts. If it works like a switch, the same
+strength will fully change some new prompts and not affect others at all, so safety
+tools built on steering can fail without warning. \upd{Today strength is chosen by
+sweeping, that is, trying a range of strengths and keeping the one that works best
+on average, although the same strength is known to work well on some inputs and
+poorly on others \cite{braun2025unreliability}. Recent studies also disagree on
+whether steering along random directions causes side effects
+\cite{malla2026interference,ong2026forecasting}.}
+
+\fillin{A paragraph stating what this paper does. The updated proposal dropped it.}
+\upd{We measure, for ten traits across five model sizes, how much of the variation
+in steering response lies within prompts versus between them, which kinds of
+traits act as switches, when during generation the switch is decided, and how all
+of this changes with scale.}
+
+\fillin{Explicit list of research questions and contributions.}
+\upd{Our research questions are:
+\begin{itemize}
+\item \textbf{Q1, switches or dials?} How much of the spread of the population
+response curve comes from prompts having different thresholds, and how much from
+each prompt responding gradually?
+\item \textbf{Q2, which traits switch?} Do decision traits switch more sharply than
+style traits?
+\item \textbf{Q3, where is the switch decided?} Is a reply's mode fixed by the
+prompt representation, by its first few tokens, or throughout generation?
+\item \textbf{Q4, regimes and scale.} How do the threshold, the switchiness, and the
+usable strength window change with model size, and do side effects have two
+strength regimes?
+\end{itemize}
+Our contributions are the switchiness statistic $S$ with an estimator that
+separates within-prompt from between-prompt variation, position-restricted
+steering interventions for Q3, and an open pipeline that runs entirely on local
+models.}
+
+\fillin{One sentence on significance to NLP research and to a real-world problem
+(rubric item).}
+\upd{For NLP research, $S$ turns a qualitative disagreement about steering into a
+measurable quantity; in practice, if traits turn out to be switches, steering
+strength should be calibrated per prompt and not globally, and $S$ gives a single
+number for deciding when that is necessary.}
+
+%------------------------------------------------------------
+\section{Related Work}
+
+\fillin{1--2 sentences of background on activation steering for readers outside
+interpretability (residual stream, steering vector, difference-of-means).}
+\upd{A transformer's residual stream is the vector, one per token position, that
+each layer reads from and adds to. A steering vector is a direction in that space
+associated with a behavior; a common way to obtain one is the difference of
+means, which subtracts the average activation over replies that lack the behavior
+from the average over replies that show it \cite{chen2025persona}. Adding a
+multiple of the vector during generation shifts the model toward the behavior.}
+
+\subsection{Trait Geometry}
+Much of the related work studies how these traits are arranged relative to one another
+inside the model, where each trait is represented as a direction
+\cite{lu2026assistant,xu2026manifold,abootorabi2026geometry}.
+\fillin{One sentence on how your project differs from this line of work.}
+\upd{These works describe where traits sit; we ask how behavior moves when a model
+is pushed along those directions.}
+
+\subsection{Steering Strength and Reliability}
+Braun et al.\ \cite{braun2025unreliability} found that the same steering can work well
+on some inputs and poorly on others, and Fan et al.\ \cite{fan2026steerable} predict,
+from the model's early internal state, whether a given prompt will be pushed too
+little, the right amount, or too much. Both treat differences between prompts as noise
+to predict. Neither asks whether that variation comes from replies to the same prompt
+or from differences between prompts, which is exactly what separates a switch from a
+dial.
+
+\subsection{Side Effects}
+While Malla et al.\ \cite{malla2026interference} and Ong et al.\
+\cite{ong2026forecasting} measure large cross-behavior side-effect matrices, they reach
+conflicting conclusions about random directions. Rather than having to re-measure full
+matrices, we measure a reduced one to test whether the conflict is explained by two
+strength regimes (Q4).
+
+%------------------------------------------------------------
+\section{Methodology}
+
+\subsection{Steering Setup}
+We \upd{extract} difference-of-means steering vectors for \upd{ten} traits with
+the persona-vectors recipe \cite{chen2025persona}, from \upd{three} independently generated
+prompt sets per trait. Vectors are extracted and applied at the middle layer of each
+model. Strength $a$ is measured in units of the median residual-stream norm at the
+steered layer, so that it is comparable across model sizes. An LLM judge will score
+every reply \upd{for the steered trait} and for coherence on a 0 to 9 scale, and a reply will
+count as expressing the trait when its score is at least a 5. \upd{Scoring every reply
+against all ten rubrics would take about one million judge calls per model and
+vector set, so all ten rubrics are applied only to the reduced side-effect runs
+of Q4.}
+
+\fillin{The final list of traits and how many prompt sets per trait.}
+\upd{The decision traits are refusing, sycophantic (agreeing with a false claim),
+hallucinating (fabricating), deceptive, and clarifying (asking a clarifying
+question); the style traits are humorous, optimistic, poetic, neurotic, and
+impolite. Each trait has three extraction sets (A, B, C), each with five pairs of
+positive and negative system instructions and 20 questions, giving three vectors
+per trait and model. For every pair of instruction and question we sample two
+replies under the positive and two under the negative instruction, keep pairs in
+which the positive reply expresses the trait, the negative one does not, and both
+are coherent, and subtract the mean residual over reply tokens. The vector is
+normalised to unit length, and steering adds $a$ times the median residual norm,
+measured on 16 neutral prompts. By default it is added at every position from
+which a reply token is predicted, that is, from the last prompt token onward.}
+\fillin{Why the middle layer (rubric: justify design choices).}
+\upd{We use block $L/2$ of $L$ in every model. A rule fixed in advance gives the
+same relative depth at every model size, and it avoids choosing a layer per trait
+by its steering effect, which would tune the very response we measure. Middle
+layers are where the persona-vectors work reports steering to be most effective
+\cite{chen2025persona}.}
+\fillin{A figure giving an overview of the pipeline or a schematic of dial vs.\
+switch response curves.}
+
+\subsection{Q1: Switches or Dials?}
+For prompt $i$, let $p_i(a)$ be the probability that a sampled reply expresses the
+trait. We model
+\begin{equation}
+p_i(a) = \Phi\!\left(\frac{\log a - \log t_i}{w}\right),
+\end{equation}
+where $\Phi$ is the standard normal cumulative distribution, $t_i$ is the prompt's own
+threshold, and $w$ is the width of its transition. Thresholds vary across prompts as
+$\log t_i \sim \mathcal{N}(\mu, \sigma_t^2)$. Averaging over prompts then gives the
+population curve
+\begin{equation}
+\Phi\!\left(\frac{\log a - \mu}{\sqrt{w^2 + \sigma_t^2}}\right),
+\end{equation}
+so a population-level fit cannot separate $w$ from $\sigma_t$.
+
+Therefore, we fit the hierarchical model to individual replies, where repeated samples
+of the same prompt identify $w$, and report the switchiness
+\begin{equation}
+S = \frac{\sigma_t^2}{\sigma_t^2 + w^2},
+\end{equation}
+which is the share of the population spread that comes from prompts differing in
+threshold. $S$ near 1 is a switch, while $S$ near 0 is a dial in which every prompt
+responds gradually.
+
+\upd{Equation 1 forces $p_i \to 0$ as $a \to 0$, but some replies express a trait
+without steering, so the fitted model adds a per-trait baseline rate $g$,
+identified by the unsteered replies: $p_i(a) = g + (1-g)\,\Phi\big((\log a - \log
+t_i)/w\big)$. We fit only strengths below the trait's coherence break
+(Section~\ref{sec:q4}), because beyond it trait scores fall again as replies turn
+to noise, which a monotone model cannot represent. As a reply-level form of the
+same question, we also report whether individual judge scores are bimodal at the
+strength where about half of the replies express the trait (Sarle's bimodality
+coefficient).}
+
+\fillin{How the hierarchical model is fit (estimation method, software).}
+\upd{The data for each trait are counts: for prompt $i$ and strength $a$, how many
+of the 8 sampled replies express the trait. We estimate $\mu$, $\sigma_t$, $w$,
+and $g$ by marginal maximum likelihood. The prompt threshold is integrated out
+numerically on a fixed grid of 181 points, and the likelihood is maximised with
+L-BFGS-B from nine starting points (our own implementation in NumPy and SciPy).
+Widths are bounded below at 0.02 in log strength; a fitted $w$ on that bound
+means the transition is narrower than the strength grid can resolve, and we
+report it as such. Intervals are 95\% percentile intervals from 200 resamples of
+prompts.}
+
+\subsection{Q2: Which Traits Switch?}
+We hypothesize that decision traits, where a reply either takes an action or not
+(refusing, agreeing with a false claim, fabricating, deceiving, or asking a clarifying
+question), have higher $S$ than style traits that can be expressed by degree (humor,
+optimism, poetic or neurotic tone). We assign traits to groups before measuring them.
+
+\subsection{Q3: Where Is the Switch Decided?}
+Fan et al.\ \cite{fan2026steerable} show that early hidden states predict the outcome
+of steering; we test the causal version. We steer only the prompt positions, only the
+first $k$ generated tokens, or only tokens after an unsteered prefix of length $k$,
+and measure the switching probability as a function of $k$. This separates three
+accounts: a reply's mode is fixed by how the prompt is represented, by its first few
+tokens, or accumulates throughout generation.
+
+\subsection{Q4: Regimes and Scale}
+\label{sec:q4}
+We measure $\mu$, $S$, and the strength at which coherence breaks across Qwen3 models
+from 0.6B to 14B, and test whether the usable window between switching and breakdown
+widens with size. We also test a two-regime account of the side-effect conflict: below
+the coherence break, side effects are specific to the steering vector, while above it
+any push drifts the model toward a common default profile.
+
+\fillin{Operational definition of the ``coherence break'' (what coherence score
+counts as broken), and how the two-regime account is tested.}
+\upd{The coherence break of a trait is the strength at which the mean coherence
+score of sampled replies falls below 5, interpolated linearly in log strength
+between the two neighbouring grid values. The usable window is the log distance
+from the median threshold to the break, $\log a_{\mathrm{break}} - \mu$. For the
+two-regime test we steer each trait vector and three norm-matched random
+directions on 40 neutral prompts, at one strength below and one above the break,
+and score the replies with all ten rubrics. A direction's side-effect profile is
+the change from the unsteered scores on the other traits. The account predicts
+that profiles of different directions, random ones included, correlate weakly
+below the break and strongly above it.}
+
+%------------------------------------------------------------
+\section{Experiments}
+
+Each question above reduces to a quantity with a confidence interval, so evaluation
+for us will mean checking that these quantities are stable and not artifacts of the
+judge or decoding.
+
+\subsection{Data}
+Trait prompts come from the persona-vectors release \cite{chen2025persona}
+\upd{for the five traits it covers (hallucinating, sycophantic, humorous,
+optimistic, impolite; used as extraction set A)}, so our
+trait definitions will match a published baseline. Additionally, we will use
+independently-generated held-out sets of 120 evaluation prompts per trait, so that
+vectors are never evaluated on the prompts that produced them.
+
+\fillin{How the held-out prompts were generated (which model, what instructions, any
+filtering).}
+\upd{All remaining extraction sets and all held-out sets were written by Claude
+(Anthropic) from a fixed written brief, which is in our repository. The brief
+asks for self-contained user messages on varied topics that never mention or
+request the trait, and on which an unsteered model would usually not show the
+trait although showing it is a natural possibility: for example, harmless
+requests for refusing, questions about invented entities for hallucinating, and
+under-specified requests for clarifying. An automatic check enforces the set
+sizes and rejects any question that appears twice within a trait, across
+extraction and held-out sets. Prompts have not been filtered by a model's
+unsteered behavior; the baseline rate $g$ absorbs prompts that express the trait
+without steering.} \pending{unsteered trait rate per trait, to confirm the
+held-out prompts start below threshold.}
+
+\subsection{Baselines and Controls}
+\fillin{This section does not exist in the proposal and the assignment requires it.
+State each baseline and what the comparison tells you.}
+\upd{We use four baselines and controls.
+\textbf{Unsteered model.} Every grid includes $a=0$, which gives the base rate of
+each trait and the baseline coherence, and identifies $g$.
+\textbf{Population-level fit.} A single sigmoid fitted to the pooled response
+curve is the description used in prior work. It recovers only $w^2 + \sigma_t^2$,
+so it is the baseline the hierarchical model is compared against.
+\textbf{Greedy decoding.} Each prompt also gets one greedy reply per strength, so
+it has a single flip point. The threshold lies between two neighbouring grid
+strengths, and fitting a normal distribution to these intervals estimates
+$\sigma_t$ without the hierarchical model.
+\textbf{Random directions.} Three norm-matched random directions are steered at
+the same strengths as the trait vectors in the side-effect runs. They show what
+any push of that size does, as opposed to a push along the trait vector.}
+
+\subsection{Evaluation Metrics}
+\textbf{Reliability.} Every quantity will be estimated from at least three independent
+vector sets, with prompt-bootstrap confidence intervals. Thus, we interpret
+side-effect estimates only if they repeat across sets (test-retest $r > 0.7$).
+
+\textbf{Switching.} Q1 and Q2 are scored by $S$ with its bootstrap interval per trait.
+Because about ten traits give little power for a group comparison, we plan to test the
+decision versus style split with a permutation test over trait labels. Greedy decoding
+will give us an independent check, where each prompt then flips deterministically at
+one strength, and the spread of these flip points estimates $\sigma_t$ without the
+hierarchical model.
+
+\textbf{Commitment and scale.} Q3 reports switching probability against $k$ for each
+intervention. Q4 fits $\mu$ and the coherence window against log model size with
+bootstrap intervals.
+
+\textbf{Judge.} The primary judge will be Mistral-Small-24B, outside the steered model
+family, scored by its expected rating, which is the probability-weighted mean over its
+next-token distribution on the digits 0 to 9. Qwen3-14B will re-score a fixed 10\%
+subset, and traits whose two judges disagree (meaning they have a Spearman correlation
+below 0.8) will be reported but excluded from the Q2 test.
+
+\fillin{The judge prompt (or a pointer to an appendix), and any human validation of
+the judge.}
+\upd{The judge prompts are given in Appendix~\ref{app:judge}. The judge reads the
+rubric and one reply, and we take its next-token distribution in a single forward
+pass; a score is discarded if less than 25\% of the probability falls on digits.}
+\pending{human validation: agreement between judge scores and our own reading of
+50 steered replies for each of three traits, and the Spearman correlation between
+the two judges per trait.}
+
+\subsection{Implementation Details}
+We propose using the Qwen3 family \cite{yang2025qwen3} at 0.6B, 1.7B, 4B, 8B, and 14B
+parameters because its dense models share a tokenizer and training recipe. We will use
+a second family, Gemma 3 (1B, 4B, 12B, 27B), to validate the main results. The main
+grid is about 96k replies per model and vector set (10 traits, 120 prompts, 10
+strengths, 8 samples). We estimate 250 GPU-hours for the full study, using H100s on
+the MIT Engaging cluster or RunPod.
+\pending{measured throughput from the pilot, to confirm the GPU-hour estimate. If
+it is exceeded, models other than Qwen3-4B use 60 prompts per trait, and Gemma 3
+is limited to 4B and 12B.}
+
+\fillin{Citation for Gemma 3.}
+\upd{[Gemma Team, ``Gemma 3 Technical Report'', 2025, arXiv:2503.19786 -- check the
+number and add to references.bib.]}
+\fillin{Software used for steering and judging. The updated proposal dropped this.}
+\upd{Steering uses forward hooks in PyTorch and Hugging Face Transformers. Judging
+uses the same libraries, not vLLM, since it needs one forward pass per reply and
+no generation. Every model, including the 24B judge, fits on one 80GB GPU. All
+stages write append-only files and resume after interruption.}
+\fillin{The 10 strength values, sampling temperature, max generation length, and
+random seeds.}
+\upd{Replies are sampled at temperature 1 with no nucleus or top-$k$ truncation and
+are capped at 200 new tokens; Qwen3's thinking mode is disabled. Each prompt and
+strength gets 8 sampled replies and one greedy reply. The grid has ten log-spaced
+positive strengths plus $a=0$. Generation uses seed 0; the bootstrap and the
+random directions use fixed seeds.} \pending{the ten strength values, which are
+chosen from a pilot sweep on Qwen3-4B so that the grid runs from no effect to
+past the coherence break.}
+
+%------------------------------------------------------------
+\section{Preliminary Results}
+
+We have implemented the extraction, steering, and judging pipeline, and early runs
+show that independently extracted vectors for the same trait agree closely.
+\fillin{The number behind ``agree closely'' (cosine similarity or correlation).}
+\pending{cosine similarity between vector sets A, B, and C per trait, from the
+re-implemented pipeline.}
+
+\upd{\textbf{Estimator check.} Before spending GPU time we simulated replies from
+the model at the real design size (120 prompts, 10 strengths, 8 samples, baseline
+rate 0.05) and refitted them, 20 times per setting. The estimator recovers $S$ in
+all three settings: a switch with true $S = 0.966$ gives $0.964 \pm 0.007$ (mean
+and standard deviation of the estimate), a dial with true $S = 0.034$ gives
+$0.031 \pm 0.008$, and a mixed case with true $S = 0.5$ gives $0.485 \pm 0.041$.
+The switch and the dial have the same $w^2 + \sigma_t^2$, so their pooled response
+curves are the same and the population-level baseline cannot tell them apart.
+The design therefore has enough power to separate the two pictures.
+
+\textbf{Pipeline check.} The full pipeline runs end to end on a laptop with
+Qwen3-0.6B as the steered model and Qwen3-1.7B standing in for the judge, for
+one trait (humorous) and 5 prompts. This is a test of the code, not a result:
+the models and sample are too small to interpret. It does show the expected
+shape. The mean trait score rises from 1.2 unsteered to 5.8 at $a = 0.6$ and
+falls to 2.6 at $a = 2$, where replies have degraded into repeated tokens, which
+is why the fit is restricted to strengths below the coherence break.}
+
+\fillin{Whatever results you have so far, even for one trait on Qwen3-4B, with an
+interpretation relative to the baselines above.}
+\pending{response curves (per-prompt and pooled) for one decision trait and one
+style trait, and fitted $\mu$, $w$, $\sigma_t$, $S$ per trait on Qwen3-4B,
+compared with the population-level fit and the greedy estimate of $\sigma_t$.}
+
+\begin{table}[t]
+\centering
+\begin{tabular}{lcccc}
+\toprule
+Trait & $\mu$ & $w$ & $\sigma_t$ & $S$ \\
+\midrule
+\fillin{trait 1} & \pending{--} & \pending{--} & \pending{--} & \pending{--} \\
+\fillin{trait 2} & \pending{--} & \pending{--} & \pending{--} & \pending{--} \\
+\bottomrule
+\end{tabular}
+\caption{\fillin{caption} Fitted parameters per trait on Qwen3-4B.}
+\label{tab:results}
+\end{table}
+
+%------------------------------------------------------------
+\section{Impact Statement}
+\fillin{Nothing in the proposal covers this; it is on the rubric.}
+\upd{This work is meant to make steering-based safeguards more predictable. If
+traits respond as switches, a strength tuned on test prompts will fully change
+some new prompts and leave others untouched, so safety tools built on steering
+can fail without warning; measuring $S$ shows when that risk applies. The same
+vectors can be misused: a vector that suppresses a trait also amplifies it, and
+our trait set includes fabrication and deception. We steer only open-weight
+models that anyone can already modify, use harmless prompts, and study the shape
+of the response and not ways to make harmful steering more effective. Every
+measurement depends on an LLM judge, whose biases carry into our results; we
+address this in part with a second judge from a different model family and a
+manual check, and we exclude traits on which the judges disagree. All prompts
+are synthetic, written by a language model or taken from a public release, and
+no human-subject data is used.}
+
+%------------------------------------------------------------
+\section{Conclusion and Next Steps}
+\fillin{2--3 sentence summary of what is done so far.}
+\upd{The pipeline for all four questions is implemented and tested: extraction,
+position-restricted steering, local judging, the hierarchical fit, and the
+analyses for Q2 to Q4. Trait definitions, groups, and prompt sets for ten traits
+are fixed. In simulation the estimator recovers $S$ at our design size. No
+measurement on the target models has been run yet with this pipeline.}
+
+Timeline: weeks 1 to 2, switching and $S$ on Qwen3-4B; week 3, commitment experiments;
+weeks 4 to 5, the size ladder and second family; week 6, regime analysis and judge
+cross-checks; week 7, writing. Each of us will own one question (Q1 to Q4). If traits
+respond as dials, the size and regime results still stand.
+\upd{Status on 19 November: the pipeline and prompt sets are complete. Remaining:
+the pilot and the main grid on Qwen3-4B with the Q1 fit and Q2 test (by 2
+December); commitment runs and the launch of the size ladder (by 9 December); Q4
+analysis, the side-effect matrix, judge cross-checks, and Gemma 3 if budget
+allows (by 16 December); then figures and writing.}
+
+%------------------------------------------------------------
+\section*{Reflection}
+\fillin{Minimum 150 words, at least one Description and one Evaluation question,
+with specific moments from your team's work.}
+\rec{Material you could draw on: Description -- how you decided what to cut between
+proposal versions (the reference list went from 16 to 9 sources); the split where
+each person owns one question; tools used (Overleaf, the Engaging cluster).
+Evaluation -- what worked or did not in that split, and what you would change.}
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\appendix
+\section{Judge Prompts}
+\label{app:judge}
+\upd{Each trait rubric inserts the trait name and its one-paragraph description
+(listed in \texttt{configs/traits.yaml} in our repository), the user prompt, and
+the reply:
+
+\begin{quote}\small
+You are evaluating whether the model's response displays the trait:
+**\{trait\}**. \{description\}
+
+Prompt: [QUESTION START] \{question\} [QUESTION END]
+
+Model response: [ANSWER START] \{answer\} [ANSWER END]
+
+Focus only on whether the response exhibits this trait, not on its quality.
+
+Respond with a single digit from 0 (trait not present at all) to 9 (trait
+strongly present). Don't say anything else, just the digit.
+\end{quote}
+
+The coherence rubric asks for a single digit, where 0 means the answer makes no
+sense at all (gibberish, endless repetition, or not valid language), 5 means it
+is understandable but rambling, confused, or drifting away from the prompt, and
+9 means clear, fluent language that addresses the prompt. It states that an
+answer can be rude, wrong, strange in style, or a refusal and still be fully
+coherent.}
+
+\end{document}

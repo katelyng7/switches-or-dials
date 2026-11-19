@@ -1,0 +1,268 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\setlist{itemsep=2pt,topsep=4pt}
+\renewcommand{\arraystretch}{1.25}
+
+\title{Implementation Plan: Switches or Dials?\\
+\large How Language Model Traits Respond to Activation Steering}
+\author{Team ULP}
+\date{19 November 2026}
+
+\begin{document}
+\sloppy
+\maketitle
+
+\section{Summary}
+
+The proposal asks whether activation steering acts like a \emph{dial} (every
+prompt responds gradually) or a \emph{switch} (each prompt flips at its own
+threshold). We measure this with the switchiness
+$S = \sigma_t^2 / (\sigma_t^2 + w^2)$ from a hierarchical probit model, across
+ten traits and the Qwen3 size ladder.
+
+Nothing in this project is trained. Steering vectors are differences of
+averaged activations, and everything else is generation and scoring. We still
+need GPUs because of volume (96k replies per model per vector set, each scored
+by a judge) and memory (the 24B judge needs about 48\,GB).
+
+The public repository \texttt{safety-research/persona\_vectors} is the upstream
+recipe from Chen et al.\ (2025), not a pipeline for this study.
+Table~\ref{tab:gap} lists what it provides and what we must build. We reuse its
+trait files, its trait-generation prompt, and its difference-of-means logic
+(Apache-2.0, credited), and write the rest in a new repository.
+
+\textbf{If anyone already has pipeline code, say so} and we will build on it
+instead of rewriting extraction, generation, and judging.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}XX@{}}
+\toprule
+Upstream has & This study needs \\
+\midrule
+7 traits, one prompt set each &
+10 traits; 3 independent extraction sets and 120 held-out evaluation prompts per trait \\
+OpenAI API judge, 0--100 scale &
+Local Mistral-Small-24B judge, expected rating over digits 0--9; Qwen3-14B re-scores 10\% \\
+Steering coefficient in raw units &
+Strength $a$ in units of the median residual norm at the middle layer \\
+Hook with three position modes (all, prompt, response) &
+Extra modes for Q3: first $k$ generated tokens, tokens after $k$ \\
+One coefficient per run &
+Resumable grid: 10 traits $\times$ 120 prompts $\times$ 10 strengths $\times$ 8 samples \\
+No statistics &
+Hierarchical fit, bootstrap intervals, permutation test, greedy check \\
+\bottomrule
+\end{tabularx}
+\caption{Gap between the upstream repository and this study.}
+\label{tab:gap}
+\end{table}
+
+\section{Repository layout}
+
+\begin{verbatim}
+configs/     traits.yaml, models.yaml, grid.yaml
+data/traits/<trait>/   extract_A.json, extract_B.json, extract_C.json, eval.json
+steer/
+  models.py    load model, chat template, middle layer, median residual norm
+  hooks.py     PositionSteerer (all | prompt | response | first_k | after_k)
+  extract.py   pos/neg replies -> judge filter -> difference of means
+  generate.py  resumable grid runner
+  judge.py     local judge, expected rating over digit probabilities
+analysis/
+  hierfit.py   hierarchical probit, S, prompt bootstrap
+  greedy.py    greedy flip points -> check on sigma_t
+  q2_groups.py decision-vs-style permutation test
+  q3_commit.py switching probability vs k
+  q4_scale.py  mu, S, coherence window vs model size; side-effect regimes
+  figures.py
+slurm/       job templates for extract / generate / judge
+tests/
+\end{verbatim}
+
+\section{Steps}
+
+\subsection{Setup}
+Git repository, pinned Python environment, and the five overlapping upstream
+trait files vendored as extraction set A.
+
+\subsection{Trait data}
+Trait groups are fixed before any measurement and committed to
+\texttt{configs/traits.yaml}:
+\begin{itemize}
+  \item \textbf{Decision:} refusing, sycophantic (agrees with a false claim),
+        hallucinating (fabricates), deceptive, clarifying-question.
+  \item \textbf{Style:} humorous, optimistic, poetic, neurotic, impolite.
+\end{itemize}
+For each trait we write three extraction sets (five positive/negative
+instruction pairs and 20 questions each, in the upstream format) and one
+120-prompt held-out evaluation set, with a check that no evaluation prompt
+appears in any extraction set. Judge rubrics are rewritten to a 0--9 scale, one
+per trait, plus a coherence rubric. \textbf{Everyone should skim the prompts
+for their traits.}
+
+\subsection{Models and steering}
+\begin{itemize}
+  \item Qwen3 is loaded with thinking disabled, so replies are not preceded by
+        a reasoning block.
+  \item The steered layer is the middle layer. The median residual norm at that
+        layer is measured once per model on a fixed neutral prompt set.
+  \item Steering adds $a \times \text{median norm} \times \hat{v}$ to the block
+        output, where $\hat{v}$ is the unit steering vector.
+  \item The hook tracks prompt length and generation step, so it can steer
+        prompt positions only, the first $k$ generated tokens only, or
+        generated tokens after $k$.
+\end{itemize}
+
+\subsection{Extraction, generation, judging}
+\begin{itemize}
+  \item \textbf{Extract.} For each (model, trait, set): generate under positive
+        and negative system prompts, keep pairs the judge scores as expressing
+        and not expressing the trait and as coherent, average response-token
+        activations, and take the difference. The first sanity result is the
+        cosine similarity between sets A, B, and C.
+  \item \textbf{Generate.} One job per (model, trait, vector set). Temperature
+        1, 8 samples per (prompt, strength), plus one greedy sample; replies
+        capped at about 200 tokens. Output is append-only, so a job killed by
+        the time limit resumes where it stopped.
+  \item \textbf{Judge.} Mistral-Small-24B reads each reply and its next-token
+        distribution over the digits 0--9 gives the score (probability-weighted
+        mean). A reply expresses the trait when its score is at least 5.
+        Qwen3-14B re-scores a fixed 10\% subset; traits with Spearman
+        correlation below 0.8 between judges are reported but excluded from Q2.
+\end{itemize}
+
+\subsection{Pilot on Qwen3-4B}
+A coarse sweep (20 prompts, 3 traits) chooses the shared 10-point log-spaced
+strength grid, plus an $a = 0$ baseline, so that it spans ``no effect'' to
+``past the coherence break''. The pilot also measures throughput to confirm the
+GPU budget before the full grid is launched.
+
+\subsection{Q1: switchiness}
+For prompt $i$ and strength $a$, $k$ of 8 replies express the trait. We fit
+\[
+  p_i(a) = \Phi\!\left(\frac{\log a - \log t_i}{w}\right),
+  \qquad \log t_i \sim \mathcal{N}(\mu, \sigma_t^2),
+\]
+by marginal maximum likelihood, integrating numerically over each prompt's
+threshold, and report $S = \sigma_t^2/(\sigma_t^2 + w^2)$ with intervals from
+resampling prompts. As an independent check, the per-prompt flip strength under
+greedy decoding gives a second estimate of $\sigma_t$. Qwen3-4B is run with
+three vector sets; $S$ is reported per set and pooled.
+
+\subsection{Q2: decision versus style}
+An exact permutation test over trait labels on the difference in mean $S$
+between the two groups (252 possible 5/5 splits).
+
+\subsection{Q3: where the switch is decided}
+Qwen3-4B, four traits (two per group), strength fixed near each trait's $\mu$.
+Interventions: prompt positions only; first $k$ generated tokens; tokens after
+an unsteered prefix of length $k$; $k \in \{1, 2, 4, 8, 16, 32, \text{all}\}$.
+The output is switching probability against $k$ for each intervention, with
+bootstrap intervals.
+
+\subsection{Q4: scale and regimes}
+\begin{itemize}
+  \item \textbf{Ladder.} Qwen3 at 0.6B, 1.7B, 4B, 8B, and 14B. For each model
+        we estimate $\mu$, $S$, and the coherence-break strength. The usable
+        window, $\log(\text{break}) - \mu$, is regressed on log parameter
+        count.
+  \item \textbf{Side effects.} A reduced matrix: steer each trait vector and
+        three norm-matched random directions at one strength below and one
+        above the coherence break, and score 40 neutral prompts with all ten
+        rubrics. The two-regime account predicts vector-specific side effects
+        below the break and a shared profile above it, random directions
+        included. Estimates are interpreted only where test--retest across
+        vector sets has $r > 0.7$.
+\end{itemize}
+
+\subsection{Gemma 3 replication (stretch)}
+4B and 12B first, then 1B and 27B if budget remains; Q1 and the window only.
+
+\subsection{Figures}
+Per-prompt curves against the population curve, $S$ per trait with intervals,
+Q3 curves against $k$, window against model size, and side-effect matrices in
+both regimes.
+
+\section{Decisions to check}
+
+These depart from, or fill gaps in, the proposal. Please object if you
+disagree.
+
+\begin{enumerate}
+  \item \textbf{Baseline expression.} The proposed model forces $p \to 0$ as
+        $a \to 0$, but some prompts express a trait unsteered. We add a
+        per-trait baseline rate $g$ estimated with the $a = 0$ replies:
+        $p = g + (1 - g)\,\Phi(\cdot)$. Without it, $w$ and $\sigma_t$ are
+        biased.
+  \item \textbf{Incoherent replies at high strength.} Past the coherence
+        break, trait scores fall again because replies turn to noise, which
+        breaks the monotone model. We fit only strengths at or below the
+        trait's coherence break (where mean coherence drops below 5) and report
+        the break separately.
+  \item \textbf{Judging cost.} Scoring every reply for every trait is about one
+        million judge calls per model and vector set. The main grid is scored
+        for its own trait and coherence only; all ten rubrics are used only on
+        the reduced side-effect matrix.
+  \item \textbf{Vector sets on the ladder.} The full grid with three sets on
+        all five models probably exceeds 250 GPU-hours once judging is counted.
+        Proposed: the full grid with three sets on 4B; on the other sizes,
+        three sets with 60 prompts. The pilot's throughput decides whether
+        this cut is needed.
+  \item \textbf{Tenth trait.} The proposal names nine traits; impolite is
+        added as the fifth style trait because upstream data exists for it.
+\end{enumerate}
+
+\section{Schedule}
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Week & Work \\
+\midrule
+1 (Nov 19--25) & Pipeline, trait data, local smoke test, pilot on Engaging \\
+2 (Nov 26--Dec 2) & Full 4B grid, Q1 fit, Q2 test \\
+3 (Dec 3--9) & Q3 runs; ladder jobs launched \\
+4 (Dec 10--16) & Q4 analysis, side-effect matrix, judge cross-check, Gemma if budget allows \\
+5 & Figures and writing \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{What is needed from the team}
+
+\begin{itemize}
+  \item Engaging details: partition and account for H100s, job time limit, and
+        a scratch path for model weights.
+  \item A Hugging Face token on the cluster with the Gemma 3 and Mistral-Small
+        licences accepted.
+  \item Whether pipeline code already exists anywhere.
+  \item Objections to any item in ``Decisions to check''.
+\end{itemize}
+
+\section{Verification}
+
+\begin{itemize}
+  \item \textbf{Unit tests.} The hook changes exactly the intended positions by
+        exactly $a \times \text{median norm}$, in every mode; with $a = 0$ the
+        output is unchanged.
+  \item \textbf{Parameter recovery.} Simulate replies from known $\mu$,
+        $\sigma_t$, $w$, and $g$ at the real design size and confirm the fit
+        recovers $S$, for a switch-like and a dial-like setting. This also
+        shows how tight the intervals on $S$ can be before any GPU time is
+        spent.
+  \item \textbf{Smoke test.} Qwen3-0.6B on a laptop, one trait, a few prompts
+        and strengths: extract, generate, judge, and fit run end to end and
+        resume after an interrupt.
+  \item \textbf{Pilot.} Read 50 steered replies by hand against judge scores
+        for three traits before trusting the grid, and check vector agreement
+        across sets A, B, and C.
+\end{itemize}
+
+\end{document}

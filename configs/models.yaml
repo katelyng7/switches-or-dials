@@ -1,0 +1,16 @@
+# short name -> Hugging Face id. params_b = parameter count in billions (Q4 x-axis).
+steered:
+  qwen3-0.6b: {hf: Qwen/Qwen3-0.6B, params_b: 0.6}
+  qwen3-1.7b: {hf: Qwen/Qwen3-1.7B, params_b: 1.7}
+  qwen3-4b:   {hf: Qwen/Qwen3-4B,   params_b: 4.0}
+  qwen3-8b:   {hf: Qwen/Qwen3-8B,   params_b: 8.2}
+  qwen3-14b:  {hf: Qwen/Qwen3-14B,  params_b: 14.8}
+  gemma3-1b:  {hf: google/gemma-3-1b-it,  params_b: 1.0}
+  gemma3-4b:  {hf: google/gemma-3-4b-it,  params_b: 4.3}
+  gemma3-12b: {hf: google/gemma-3-12b-it, params_b: 12.2}
+  gemma3-27b: {hf: google/gemma-3-27b-it, params_b: 27.4}
+judges:
+  mistral-small: {hf: mistralai/Mistral-Small-24B-Instruct-2501}
+  qwen3-14b:     {hf: Qwen/Qwen3-14B}
+  # laptop stand-in for smoke tests only; its scores are not meaningful
+  smoke:         {hf: Qwen/Qwen3-1.7B}
