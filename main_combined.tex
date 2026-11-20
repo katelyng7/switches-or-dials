@@ -6,9 +6,10 @@
 \usepackage[numbers,square,comma,sort&compress]{natbib}
 
 % Colour key: black = main2.tex text; green = brought over from main.tex;
-% red = TODO (a gap, or the two drafts state different facts);
+% red = TODO (a gap to fill); blue = the two drafts state different facts;
 % magenta = cannot be written until results exist.
 \newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+\newcommand{\differ}[1]{\textcolor{blue}{[DIFFERS: #1]}}
 \definecolor{updgreen}{rgb}{0,0.5,0}
 \newcommand{\upd}[1]{{\color{updgreen}#1}}
 \newcommand{\pending}[1]{\textcolor{magenta}{[PENDING RESULTS: #1]}}
@@ -64,7 +65,7 @@ that lack the behavior from the average over replies that show it
 \section{Methods}
 
 \paragraph{Steering and traits.} We steer Qwen3 from 0.6B to 14B \cite{yang2025qwen3}, mainly 4B, adding the vector at the middle layer at every token. Strength $a$ is the vector's length relative to the median hidden-state length, giving all sizes one scale. We study five decision traits (sycophantic, hallucinating, refusal, deceptive, clarifying) and six style traits (humorous, neurotic, optimistic, impolite, apathetic, poetic), grouped in advance. Each vector is the mean hidden state of replies under a trait system prompt minus that under a helpful one \cite{chen2025persona}; we average three vectors built from independent question sets.
-\todo{The two drafts differ here. main.tex and the code in our repository have
+\differ{The two drafts differ here. main.tex and the code in our repository have
 ten traits (no \emph{apathetic}), keep the three vectors separate and report $S$
 per vector, and add the vector from the last prompt token onward, not at every
 token. Decide which is the paper's setup.}
@@ -87,7 +88,7 @@ reports steering to be most effective \cite{chen2025persona}.}
 of the pipeline.}
 
 \paragraph{Judge and switching.} Qwen3-14B scores each reply from 0 to 9 per trait and for coherence, as an expected score over digit probabilities; Mistral-Small-24B re-scores a subset. A reply is \emph{switched} if its score exceeds its prompt's unsteered mean $b$ by $\min(4,(9-b)/2)$.
-\todo{The two drafts differ here. main.tex and the repository code use
+\differ{The two drafts differ here. main.tex and the repository code use
 Mistral-Small-24B as the main judge with Qwen3-14B re-scoring a fixed 10\%
 subset, and count a reply as switched at an absolute score of 5 or more.}
 \upd{The expected score is the probability-weighted mean over the judge's
@@ -119,7 +120,7 @@ scores fall again as replies turn to noise, which a monotone model cannot
 represent. As a reply-level form of the same question, we also report whether
 individual judge scores are bimodal at the strength where about half of the
 replies switch (Sarle's bimodality coefficient).}
-\todo{The repository's fit also has a per-trait baseline rate $g$, $p_i(a) = g
+\differ{The repository's fit also has a per-trait baseline rate $g$, $p_i(a) = g
 + (1-g)\,\Phi(\cdot)$, for replies that express the trait unsteered. If
 switching is measured relative to each prompt's baseline as stated above, say
 whether $g$ is still fitted or fixed at 0.}
@@ -137,7 +138,7 @@ trait rubrics. A vector's side-effect profile is the change from the unsteered
 scores on the other traits. The two-regime account predicts that profiles of
 different vectors, random ones included, correlate weakly below the break and
 strongly above it.}
-\todo{The two drafts define the coherence break differently: here, mean
+\differ{The two drafts define the coherence break differently: here, mean
 coherence down by over 1 point; in main.tex and the repository code, mean
 coherence below 5, interpolated in log strength.}
 
@@ -146,14 +147,14 @@ coherence below 5, interpolated in log strength.}
 shown, Mistral-Small-24B marked fluent in-character replies as incoherent (8\%
 of replies written under an anxious persona passed, against 99\% without the
 prompt), while no reply at the largest steering strength passes either
-version.} \todo{That check used Mistral-Small-24B as coherence judge on Qwen3-4B
+version.} \differ{That check used Mistral-Small-24B as coherence judge on Qwen3-4B
 replies; repeat it with Qwen3-14B if that is the main judge.}
 
 %------------------------------------------------------------
 \section{Experiments}
 
 \paragraph{Setup and baselines.} On Qwen3-4B every vector is applied to the same 120 held-out prompts at $a=0.05$ to $0.6$; other sizes use 60 prompts at 0.1 to 0.95. Table~\ref{tab:baselines} lists the controls.
-\todo{The repository's main grid is $a=0$ plus ten log-spaced strengths from
+\differ{The repository's main grid is $a=0$ plus ten log-spaced strengths from
 0.15 to 1.2, chosen from a pilot on Qwen3-4B in which traits appeared between
 0.2 and 0.8. Reconcile with the 12 strengths from 0.05 to 0.6 stated here.}
 
@@ -204,7 +205,7 @@ under-specified requests for clarifying. An automatic check enforces the set
 sizes and rejects any question that appears twice within a trait, across
 extraction and held-out sets, so vectors are never evaluated on the prompts that
 produced them. Prompts were not filtered by a model's unsteered behavior.}
-\todo{This describes the prompt sets in the repository (ten traits). If
+\differ{This describes the prompt sets in the repository (ten traits). If
 \emph{apathetic} is kept, say where its prompts come from.}
 \pending{unsteered trait rate per trait on the held-out prompts.}
 
@@ -219,7 +220,7 @@ libraries with one forward pass per reply and no generation. Runs use H200 GPUs
 on the MIT ORCD cluster; every model, including the 24B judge, fits on one GPU,
 and generation on Qwen3-4B runs at about 18 replies per second. All stages
 write append-only files and resume after interruption.}
-\todo{main.tex also planned Gemma 3 (1B, 4B, 12B, 27B) as a second model family;
+\differ{main.tex also planned Gemma 3 (1B, 4B, 12B, 27B) as a second model family;
 main2.tex does not mention it. Keep or drop, and add the Gemma 3 citation if
 kept.}
 
@@ -235,7 +236,7 @@ with true $S = 0.034$ gives $0.031 \pm 0.008$, and a mixed case with true $S =
 0.5$ gives $0.485 \pm 0.041$. The switch and the dial have the same $w^2 +
 \sigma_t^2$, so their pooled response curves are the same and the average-curve
 baseline cannot tell them apart.}
-\todo{Section 2 says the simulations include judge error; the simulation
+\differ{Section 2 says the simulations include judge error; the simulation
 reported here does not. Either add judge noise to it or report the simulation
 that does.}
 
