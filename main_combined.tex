@@ -1,50 +1,24 @@
-\documentclass{article}
-
-\usepackage{arxiv}
-
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage{hyperref}
-\hypersetup{colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black}
-\usepackage{xurl}
-\usepackage{booktabs}
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb}
-\usepackage{microtype}
-\usepackage{graphicx}
+\usepackage{booktabs}
 \usepackage{xcolor}
 \usepackage[numbers,square,comma,sort&compress]{natbib}
 
-% Colour key for this combined draft (main2.tex wording + what only main.tex had):
-%   black   = text of main2.tex, unchanged except where a comment says so
-%   green   = brought over from main.tex because main2.tex had no counterpart
-%   red     = TODO: a gap, or a place where the two drafts state different facts
-%   magenta = cannot be written until results exist
+% Colour key: black = main2.tex text; green = brought over from main.tex;
+% red = TODO (a gap, or the two drafts state different facts);
+% magenta = cannot be written until results exist.
 \newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
 \definecolor{updgreen}{rgb}{0,0.5,0}
 \newcommand{\upd}[1]{{\color{updgreen}#1}}
 \newcommand{\pending}[1]{\textcolor{magenta}{[PENDING RESULTS: #1]}}
-\newcommand{\Shat}{\hat{S}}
 
-\title{Switches or Dials? How Language Model Traits\\Respond to Activation Steering}
-
-\renewcommand{\headeright}{Draft}
-\renewcommand{\undertitle}{Team ULP: Unnatural Language Processing}
-\renewcommand{\shorttitle}{Switches or Dials?}
+\title{Switches or Dials? How Language Model Traits Respond to Activation Steering}
+\author{Danial Hosseintabar \and Mahdi Afshari \and Katelyn Gan \and Lauren Shen \\ MIT}
 \date{}
-
-\author{
-  Danial Hosseintabar \\ MIT \\ \texttt{danialht@mit.edu}
-  \And
-  Mahdi Afshari \\ MIT \\ \texttt{afshari@mit.edu}
-  \And
-  Katelyn Gan \\ MIT \\ \texttt{kgan@mit.edu}
-  \And
-  Lauren Shen \\ MIT \\ \texttt{ljshen@mit.edu}
-}
 
 \begin{document}
 \maketitle
-\begin{center}\small Project workspace: \href{https://www.overleaf.com/project/6affae31681336f1b700a62d/share\#cf8fa3ce9a988f6a2a5c88ddf9eea1c586d020f3416d6e69}{\texttt{overleaf.com/project/6affae31681336f1b700a62d}}\end{center}\vspace{0.5em}
 
 \begin{abstract}
 Activation steering adds a ``trait vector'' to a language model's hidden states, with a strength usually chosen from a curve averaged over prompts. Averaging could introduce unwanted consequences. For example, when a small subset of prompts have a highly biased trait, the average could shift without the majority agreeing with it. In this work we study per-prompt dynamics of each trait's evolution.
@@ -58,7 +32,6 @@ We introduce a switchiness metric $S\in[0,1]$ to evaluate this behavior; when $S
 
 Suppose steering a chatbot toward sycophancy makes the average response of the Language Model (LM) 50\% more sycophantic (measured by scores given by an LLM judge). This is informative, but cannot distinguish between different behaviors. Either every prompt has a 50\% chance of a sycophantic reply (a \emph{dial}), or half of the prompts always get one and the rest never do (a \emph{switch}). We ask which one steering is.
 
-% main2.tex had a broken sentence here ("Practitioners, choose the streng The strength is chosen by a sweep"); the fragment is removed.
 Activation steering adds a fixed vector $a \hat{v}$, where $\hat{v}$ is a unit-sized vector and $a$ is the \emph{strength} hyper-parameter, to a model's hidden state in its residual stream while it generates \cite{turner2023actadd,rimsky2024caa,zou2023repe}, and persona vectors \cite{chen2025persona} make such vectors easy to build for character traits. The strength is chosen by a sweep: average a trait score over test prompts at several strengths and pick a point on the curve \cite{tan2024reliability,braun2025unreliability}. Under a dial, that strength transfers predictably to new prompts; under a switch, it fully changes some and leaves others untouched, so tools calibrated on averages can fail on individual inputs. Averages cannot tell the two apart, a trap long known from learning curves \cite{estes1956group,gallistel2004learning}.
 
 Sampling many replies to the \emph{same} prompt separates how gradually one prompt changes from how much flip points vary across prompts, which we combine into a \emph{switchiness} $S$. We ask: \textbf{(Q1)} are traits switches or dials; \textbf{(Q2)} are \emph{decision} traits (refusing, inventing a fact) more switch-like than \emph{style} traits (humor, worry); \textbf{(Q3)} is the switch decided when the prompt is read, in the first reply tokens, or gradually; and \textbf{(Q4)} how do thresholds change with model size and as text breaks down?
@@ -204,7 +177,6 @@ Three vectors per trait; second judge & dependence on one vector or judge \\
 \caption{Baselines and controls.}
 \label{tab:baselines}
 \end{table}
-% main2.tex stopped inside this table (no \midrule, \end{table} missing); both are added.
 
 \upd{\paragraph{What each comparison tells us.} The average-curve fit is a single
 sigmoid fitted to the pooled response curve, the description used in prior work;
