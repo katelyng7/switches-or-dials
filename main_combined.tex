@@ -5,13 +5,13 @@
 \usepackage{xcolor}
 \usepackage[numbers,square,comma,sort&compress]{natbib}
 
-% Colour key: black = main2.tex text; green = brought over from main.tex;
-% red = TODO (a gap to fill); blue = the two drafts state different facts;
+% Colour key: black = main2.tex text; blue = content that main2.tex does not
+% have (brought over from main.tex), including whole sections with blue headings;
+% orange = note that the two drafts state different facts; red = gap to fill;
 % magenta = cannot be written until results exist.
 \newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
-\newcommand{\differ}[1]{\textcolor{blue}{[DIFFERS: #1]}}
-\definecolor{updgreen}{rgb}{0,0.5,0}
-\newcommand{\upd}[1]{{\color{updgreen}#1}}
+\newcommand{\differ}[1]{\textcolor{orange}{[DIFFERS: #1]}}
+\newcommand{\upd}[1]{{\color{blue}#1}}
 \newcommand{\pending}[1]{\textcolor{magenta}{[PENDING RESULTS: #1]}}
 
 \title{Switches or Dials? How Language Model Traits Respond to Activation Steering}
@@ -225,7 +225,7 @@ main2.tex does not mention it. Keep or drop, and add the Gemma 3 citation if
 kept.}
 
 %------------------------------------------------------------
-\section{Preliminary Results}
+\section{\textcolor{blue}{Preliminary Results}}
 
 \upd{\paragraph{Estimator check.} Before spending GPU time we simulated replies
 from the model at the design size of main.tex (120 prompts, 10 strengths, 8
@@ -262,7 +262,7 @@ Trait & $a_{50}$ & $w$ & $\sigma_t$ & $S$ \\
 \end{table}
 
 %------------------------------------------------------------
-\section{Impact Statement}
+\section{\textcolor{blue}{Impact Statement}}
 \upd{This work is meant to make steering-based safeguards more predictable. If
 traits respond as switches, a strength tuned on test prompts will fully change
 some new prompts and leave others untouched, so safety tools built on steering
@@ -278,7 +278,7 @@ language model or taken from a public release, and no human-subject data is
 used.}
 
 %------------------------------------------------------------
-\section{Conclusion and Next Steps}
+\section{\textcolor{blue}{Conclusion and Next Steps}}
 \todo{2--3 sentence summary of what is done so far, once the two drafts'
 setups are reconciled.}
 \upd{Remaining work: the main grid on Qwen3-4B with the Q1 fit and Q2 test (by 2
@@ -288,12 +288,12 @@ figures and writing. If traits respond as dials, the size and regime results
 still stand.}
 
 %------------------------------------------------------------
-\section*{AI Acknowledgement}
+\section*{\textcolor{blue}{AI Acknowledgement}}
 \upd{We used Claude Code (Anthropic; model Claude Fable 5.2) to generate the code
 for the extraction, steering, judging, and analysis pipeline and its automated
 tests, and to draft the implementation plan.}
 \todo{Any other AI use: related-work search, tables, and any AI-drafted prose
-that remains in this paper. The green text in this draft was drafted by Claude
+that remains in this paper. The blue text in this draft was drafted by Claude
 Code; the course lists code, related-work research, and tables as approved uses,
 so rewrite that text yourselves or disclose it here after checking with staff.}
 \todo{How you checked the output, in your own words and only what you actually
@@ -306,7 +306,7 @@ steered models, the judges, and the model that wrote the prompt sets) are
 described in Sections 3 and 4.}
 
 %------------------------------------------------------------
-\section*{Reflection}
+\section*{\textcolor{blue}{Reflection}}
 \todo{Minimum 150 words, at least one Description and one Evaluation question,
 with specific moments from your team's work.}
 
@@ -314,7 +314,7 @@ with specific moments from your team's work.}
 \bibliography{refs}
 
 \appendix
-\section{Judge Prompts}
+\section{\textcolor{blue}{Judge Prompts}}
 \label{app:judge}
 \upd{Each trait rubric inserts the trait name and its one-paragraph description
 (listed in \texttt{configs/traits.yaml} in our repository), the user prompt, and
