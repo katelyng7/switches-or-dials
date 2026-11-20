@@ -2,7 +2,9 @@
 # Qwen3-14B re-scores a fixed 10% of the main grid for one steered model.
 #   sbatch --export=ALL,MODEL=qwen3-4b slurm/second_judge.sbatch
 #SBATCH --job-name=judge2
-#SBATCH -p mit_normal_gpu
+#SBATCH -p mit_preemptable
+#SBATCH --requeue
+#SBATCH --open-mode=append
 #SBATCH --gres=gpu:h200:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G

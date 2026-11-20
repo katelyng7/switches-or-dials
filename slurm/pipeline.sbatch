@@ -6,7 +6,9 @@
 #          --export=ALL,MODEL=qwen3-4b,VSET=A,GRID=main slurm/pipeline.sbatch
 #
 #SBATCH --job-name=steer
-#SBATCH -p mit_normal_gpu
+#SBATCH -p mit_preemptable
+#SBATCH --requeue
+#SBATCH --open-mode=append
 #SBATCH --gres=gpu:h200:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G

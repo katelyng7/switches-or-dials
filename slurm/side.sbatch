@@ -3,7 +3,9 @@
 # prompts, below (LOW) and above (HIGH) the coherence break; all ten rubrics.
 #   sbatch --export=ALL,MODEL=qwen3-4b,LOW=0.3,HIGH=1.5 slurm/side.sbatch
 #SBATCH --job-name=side
-#SBATCH -p mit_normal_gpu
+#SBATCH -p mit_preemptable
+#SBATCH --requeue
+#SBATCH --open-mode=append
 #SBATCH --gres=gpu:h200:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G

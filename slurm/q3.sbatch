@@ -2,7 +2,9 @@
 # Q3 commitment runs for one trait at one strength (set A to roughly exp(mu) from Q1).
 #   sbatch --export=ALL,MODEL=qwen3-4b,TRAIT=refusing,A=0.4 slurm/q3.sbatch
 #SBATCH --job-name=q3
-#SBATCH -p mit_normal_gpu
+#SBATCH -p mit_preemptable
+#SBATCH --requeue
+#SBATCH --open-mode=append
 #SBATCH --gres=gpu:h200:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
