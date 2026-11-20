@@ -33,24 +33,20 @@ Focus only on whether the response exhibits this trait, not on its quality.
 
 Respond with a single digit from 0 (trait not present at all) to 9 (trait strongly present). Don't say anything else, just the digit."""
 
-COHERENCE_RUBRIC = """I am evaluating the language of a model's answer. Rate only how coherent the writing is: whether it is fluent, well-formed text whose sentences make sense together. Do not rate whether it answers the prompt, or whether it is correct, helpful, or appropriate in tone.
+# The judge is not shown the prompt: with it, fluent in-character or off-topic
+# replies were marked incoherent (scripts/rubric_test.py compares the wordings).
+COHERENCE_RUBRIC = """I am checking whether a piece of text is well-formed language. Rate only the writing itself. You are not told what the text was written in response to, and it does not matter: do not rate relevance, correctness, helpfulness, or tone.
 
-Prompt:
-[QUESTION START]
-{question}
-[QUESTION END]
-
-Model response:
-[ANSWER START]
+[TEXT START]
 {answer}
-[ANSWER END]
+[TEXT END]
 
-Rate coherence with a single digit:
-* 0 means it makes no sense at all: gibberish, word salad, or the same phrase looping endlessly.
+Rate with a single digit:
+* 0 means the text is broken: gibberish, word salad, or the same phrase looping.
 * 5 means it is understandable but noticeably repetitive, rambling, or losing its thread.
-* 9 means it is clear, fluent, well-formed language.
+* 9 means it is fluent, well-formed language.
 
-A refusal, a poem, a joke, an off-topic answer, or a rude or wrong answer scores 9 if it is written clearly. The answer may be cut off at the end by a length limit; do not penalise that. Respond with a single digit from 0 to 9. Don't say anything else, just the digit."""
+Text written in a strong style or persona (anxious, rude, comic, poetic, evasive) scores 9 if a person could have written it that way on purpose. The text may be cut off at the end by a length limit; do not penalise that. Respond with a single digit from 0 to 9. Don't say anything else, just the digit."""
 
 MAX_ANSWER_CHARS = 3000
 THRESHOLD = 5.0  # a reply "expresses the trait" / "is coherent" at score >= 5
