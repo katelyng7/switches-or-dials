@@ -41,7 +41,8 @@ def load(short, device=None, dtype=None):
     device = device or pick_device()
     if dtype is None:
         dtype = torch.bfloat16 if device == "cuda" else torch.float32
-    tok = AutoTokenizer.from_pretrained(hf)
+    # Mistral tokenizer files ship a known-bad pre-tokenizer regex; transformers fixes it on request.
+    tok = AutoTokenizer.from_pretrained(hf, **({"fix_mistral_regex": True} if "mistral" in hf.lower() else {}))
     tok.padding_side = "left"
     if tok.pad_token_id is None:
         tok.pad_token = tok.eos_token

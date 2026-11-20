@@ -33,7 +33,7 @@ Focus only on whether the response exhibits this trait, not on its quality.
 
 Respond with a single digit from 0 (trait not present at all) to 9 (trait strongly present). Don't say anything else, just the digit."""
 
-COHERENCE_RUBRIC = """I am evaluating a language model's answer. Rate how coherent the answer is, regardless of whether it is correct, helpful, or appropriate in tone.
+COHERENCE_RUBRIC = """I am evaluating the language of a model's answer. Rate only how coherent the writing is: whether it is fluent, well-formed text whose sentences make sense together. Do not rate whether it answers the prompt, or whether it is correct, helpful, or appropriate in tone.
 
 Prompt:
 [QUESTION START]
@@ -46,11 +46,11 @@ Model response:
 [ANSWER END]
 
 Rate coherence with a single digit:
-* 0 means it makes no sense at all: gibberish, endless repetition, or not valid language.
-* 5 means it is understandable but rambling, confused, or drifts away from the prompt.
-* 9 means it is clear, fluent language that addresses the prompt.
+* 0 means it makes no sense at all: gibberish, word salad, or the same phrase looping endlessly.
+* 5 means it is understandable but noticeably repetitive, rambling, or losing its thread.
+* 9 means it is clear, fluent, well-formed language.
 
-An answer can be rude, wrong, strange in style, or a refusal and still be fully coherent. Respond with a single digit from 0 to 9. Don't say anything else, just the digit."""
+A refusal, a poem, a joke, an off-topic answer, or a rude or wrong answer scores 9 if it is written clearly. The answer may be cut off at the end by a length limit; do not penalise that. Respond with a single digit from 0 to 9. Don't say anything else, just the digit."""
 
 MAX_ANSWER_CHARS = 3000
 THRESHOLD = 5.0  # a reply "expresses the trait" / "is coherent" at score >= 5

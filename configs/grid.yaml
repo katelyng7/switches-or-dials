@@ -1,12 +1,19 @@
 # Strengths are in units of the median residual norm at the steered layer.
-# PLACEHOLDER grid: replace `main.strengths` after the Qwen3-4B pilot (plan step 5).
+# main.strengths was set from the Qwen3-4B pilot (plan step 5).
 grids:
   pilot:
     strengths: [0.0, 0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2]
     n_prompts: 20
     n_samples: 4
+  # same strengths as main, on 20 prompts, to check the grid before the full run
+  pilot2:
+    strengths: [0.0, 0.15, 0.19, 0.24, 0.3, 0.38, 0.48, 0.6, 0.76, 0.95, 1.2]
+    n_prompts: 20
+    n_samples: 4
+  # 10 log-spaced strengths (ratio 1.26) over the range where the first pilot
+  # showed traits appearing (0.2-0.8) and coherence failing (0.4-1.6)
   main:
-    strengths: [0.0, 0.06, 0.09, 0.13, 0.19, 0.28, 0.42, 0.62, 0.92, 1.36, 2.0]
+    strengths: [0.0, 0.15, 0.19, 0.24, 0.3, 0.38, 0.48, 0.6, 0.76, 0.95, 1.2]
     n_prompts: 120
     n_samples: 8
   smoke:
